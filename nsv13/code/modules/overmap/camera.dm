@@ -21,7 +21,7 @@
 				to_chat(pilot, "<span class='warning'>[user] has kicked you off the ship controls!</span>")
 				stop_piloting(pilot)
 			pilot = user
-			show_flight_ui()
+			LAZYOR(user.mousemove_intercept_objects, src)
 		if("gunner")
 			if(gunner)
 				to_chat(gunner, "<span class='warning'>[user] has kicked you off the ship controls!</span>")
@@ -30,21 +30,21 @@
 		if("all_positions")
 			pilot = user
 			gunner = user
+			LAZYOR(user.mousemove_intercept_objects, src)
 	user.set_focus(src)
 	operators += user
 	CreateEye(user) //Your body stays there but your mind stays with me - 6 (Battlestar galactica)
 	user.overmap_ship = src
 	dradis?.attack_hand(user)
-	LAZYOR(user.mousemove_intercept_objects, src)
 	user.click_intercept = src
 
 /obj/structure/overmap/proc/stop_piloting(mob/living/M)
 	M.focus = M
 	operators -= M
-	LAZYREMOVE(M.mousemove_intercept_objects, src)
 	if(M.click_intercept == src)
 		M.click_intercept = null
 	if(pilot && M == pilot)
+		LAZYREMOVE(M.mousemove_intercept_objects, src)
 		pilot = null
 		if(helm)
 			playsound(helm, 'nsv13/sound/effects/computer/hum.ogg', 100, 1)
@@ -52,11 +52,14 @@
 		if(tactical)
 			playsound(tactical, 'nsv13/sound/effects/computer/hum.ogg', 100, 1)
 		gunner = null
+		target_lock = null
 	if(M.client)
 		M.client.check_view()
 	M.overmap_ship = null
+	var/mob/camera/aiEye/remote/overmap_observer/eyeobj = M.remote_control
+	if(eyeobj?.off_action)
+		qdel(eyeobj.off_action)
 	M.cancel_camera()
-	M.remote_control = null
 	return TRUE
 
 /obj/structure/overmap/proc/CreateEye(mob/user)
@@ -83,6 +86,7 @@
 	var/datum/action/innate/camera_off/overmap/off_action
 	animate_movement = 0 //Stops glitching with overmap movement
 	use_static = USE_STATIC_NONE
+	var/obj/structure/overmap/override_origin = null //Lets gunners lock on to their targets for accurate shooting.
 
 /datum/action/innate/camera_off/overmap
 	name = "Stop observing"
@@ -94,7 +98,7 @@
 /datum/action/innate/camera_off/overmap/Activate()
 	if(!target || !isliving(target))
 		return
-	if(!remote_eye.origin)
+	if(!remote_eye?.origin)
 		qdel(src)
 		qdel(remote_eye)
 	var/obj/structure/overmap/ship = remote_eye.origin
@@ -112,4 +116,9 @@
 	RegisterSignal(origin, COMSIG_MOVABLE_MOVED, .proc/update)
 
 /mob/camera/aiEye/remote/overmap_observer/proc/update()
+	if(override_origin)
+		forceMove(override_origin) //This only happens for gunner cams
+		eye_user.client.pixel_x = override_origin.pixel_x
+		eye_user.client.pixel_y = override_origin.pixel_y
+		return
 	forceMove(get_turf(origin))

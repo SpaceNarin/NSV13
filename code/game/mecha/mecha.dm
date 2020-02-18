@@ -908,7 +908,7 @@
 	return
 
 /obj/mecha/proc/moved_inside(mob/living/carbon/human/H)
-	if(H && H.client && H in range(1))
+	if(H && H.client && (H in range(1)))
 		occupant = H
 		H.forceMove(src)
 		H.update_mouse_pointer()
@@ -1049,7 +1049,7 @@
 
 	if(L?.client)
 		L.update_mouse_pointer()
-		L.client.change_view(CONFIG_GET(string/default_view))
+		L.client.check_view()
 		zoom_mode = 0
 
 /////////////////////////
